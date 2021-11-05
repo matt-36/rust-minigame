@@ -45,7 +45,7 @@ impl<'a> EventHandler {
     }
 
     pub fn IterIncoming(mut self) -> Vec<Value> {
-        let c = self.incoming.clone();
+        let mut c = self.incoming.clone();
         self.incoming.clear();
         c
     }

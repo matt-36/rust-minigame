@@ -1,6 +1,6 @@
 use std::clone;
 
-use sdl2::render::{Texture};
+use sdl2::{render::{Texture}};
 
 #[derive(Copy, Clone)]
 pub enum EntityTypes {
@@ -17,29 +17,26 @@ pub enum State {
 }
 
 
-
-pub struct Entity<'a> {
-    texture: Texture<'a>,
-    p_x: i32,
-    p_y: i32,
-    s_x: i32,
-    s_y: i32,
-    type_: EntityTypes,
-    health: i32,
-    name: String,
-    state: State
+pub struct Entity {
+    texture: (),
+    pub p_x: i32,
+    pub p_y: i32,
+    pub s_x: i32,
+    pub s_y: i32,
+    pub type_: EntityTypes,
+    pub health: i32,
+    pub state: State
 }
 
-impl Entity<'_> {
+impl Entity {
     // create a new entity
-    pub fn Init(
-        texture: Texture, 
+    pub fn new(
+        texture: &Texture, 
         x_coordinate: i32, 
         y_coordinate: i32,
         x_scale: i32, 
         y_scale: i32, 
-        type_: EntityTypes,
-        name: String
+        type_: EntityTypes
     ) -> Entity {
         Entity {
             texture,
@@ -47,8 +44,7 @@ impl Entity<'_> {
             p_y: y_coordinate,
             s_x: x_scale,
             s_y: y_scale,
-            type_: type_,
-            name: name,
+            type_,
             health: 100,
             state: State::Alive
         }
@@ -68,26 +64,6 @@ impl Entity<'_> {
     /// Get a reference to the entity's texture.
     pub fn get_texture(&self) -> &Texture {
         &self.texture
-    }
-}
-
-impl<'a> Clone for Entity<'a> {
-    fn clone(&self) -> Self {
-        Entity {
-            texture: self.texture.clone(),
-            p_x: self.p_x.clone(),
-            p_y: self.p_y.clone(),
-            s_x: self.s_x.clone(),
-            s_y: self.s_y.clone(),
-            type_: self.type_.clone(),
-            name: self.name.clone(),
-            health: 100,
-            state: State::Alive,
-        }
-    }
-
-    fn clone_from(&mut self, source: &Self) {
-        Self { texture: self.texture.clone(), p_x: self.p_x.clone(), p_y: self.p_y.clone(), s_x: self.s_x.clone(), s_y: self.s_y.clone(), type_: self.type_.clone(), health: self.health.clone(), name: self.name.clone(), state: self.state.clone() }
     }
 }
 
