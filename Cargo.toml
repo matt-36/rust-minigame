@@ -9,3 +9,4 @@ edition = "2018"
 sdl2 = { version = "*", features = ["image"]}
 serde_json = "*"
 serde = { version = "*", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
