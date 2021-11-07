@@ -8,8 +8,8 @@ mod events;
 mod game;
 mod collision;
 
-use std::path::Path;
 
+use sdl2::mouse::MouseButton;
 use sdl2::{event::Event, video::FullscreenType};
 // use sdl2::gfx::framerate::FPSManager;
 use sdl2::image::{InitFlag, LoadTexture};
@@ -24,20 +24,25 @@ use crate::collision::AABB;
 const GAME_SIZE_X: u32 = 768;
 const GAME_SIZE_Y: u32 = 432;
 
-fn something(ticks: u32, fpm: u32) -> i32 {
-    32 * ((ticks / 100) % fpm) as i32
+fn move_anim(ticks: u32, fpm: u32) -> i32 {
+    let x = 32 * ((ticks / 100) % fpm) as i32;
+    println!("{:?}", x);
+    x
 }
 
+
+
 fn main() -> Result<(), String> {
-    let mut MOVEMENT_SPEED = 4;
+    let MOVEMENT_SPEED = 4;
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
     let _image_context = sdl2::image::init(InitFlag::PNG | InitFlag::JPG)?;
+    let _ttf_context = sdl2::ttf::init().expect("Failed to initialize ttf");
     // the window is the representation of a window in your operating system,
     // however you can only manipulate properties of that window, like its size, whether it's
     // fullscreen, ... but you cannot change its content without using a Canvas or using the
     // `surface()` method.
-    let mut window = video_subsystem
+    let window = video_subsystem
         .window("rust game", GAME_SIZE_X, GAME_SIZE_Y)
         .position_centered()
         .allow_highdpi()
@@ -65,18 +70,24 @@ fn main() -> Result<(), String> {
     // this struct manages textures. For lifetime reasons, the canvas cannot directly create
     // textures, you have to create a `TextureCreator` instead.
     let texture_creator: TextureCreator<_> = canvas.texture_creator();
-    let temp_surface = sdl2::surface::Surface::load_bmp(Path::new("assets/characters.bmp"))?;
-    let texture = texture_creator
-        .create_texture_from_surface(&temp_surface)
-        .map_err(|e| e.to_string())?;
+    let texture = texture_creator.load_texture("assets/characters.png")?;
     let wall_tex = texture_creator.load_texture("assets/yellow.png")?;
+    let _swing_tex = texture_creator.load_texture("assets/swoosh.png")?;
+
     let timer = sdl_context.timer()?;
-    let mut player = entity::Player::new(Rect::new(0, 0, 32, 32));
-    let mut wall = collision::Colider::new(
+    let mut player = entity::Player::new(Rect::new(0, 6, 32, 32));
+    let wall = collision::Colider::new(
         Rect::new(0, 0, 12, 80),
         Rect::new(500, 70, 12*4, 80*4)
     );
-
+    let font = _ttf_context.load_font("assets/font/Roboto-Bold.ttf", 128)?;
+    let font_surface = font
+        .render("Hello Rust!")
+        .blended(Color::RGBA(255, 0, 0, 255))
+        .map_err(|e| e.to_string())?;
+    
+    let font_tex = texture_creator.create_texture_from_surface(font_surface).unwrap();
+    
     // let fpsmanager = FPSManager::new();
     let mut fullscreen = false;
     let mut event_pump = sdl_context.event_pump()?;
@@ -86,9 +97,9 @@ fn main() -> Result<(), String> {
     'running: loop {
         // get the inputs here
         for event in event_pump.poll_iter() {
-            if let Event::KeyDown { repeat: false, .. } | Event::KeyUp { .. } = event {
-                println!("recieved {:?}", event);
-            };
+            // if let Event::KeyDown { repeat: false, .. } | Event::KeyUp { .. } = event {
+            //     println!("recieved {:?}", event);
+            // };
 
             match event {
                 Event::Quit { .. }
@@ -132,6 +143,11 @@ fn main() -> Result<(), String> {
                     ..
                 } => {
                     player.movement.set_by_key(keycode, false);
+                },
+                Event::MouseButtonDown {
+                    mouse_btn: MouseButton::Left, ..
+                } => {
+                    player.attack()
                 }
                 _ => {}
             }
@@ -139,7 +155,7 @@ fn main() -> Result<(), String> {
 
         // update the game loop here
         if player.movement.should_play_animation() {
-            player.sprite.x = something(timer.ticks(), 4);
+            player.sprite.x = move_anim(timer.ticks(), 4);
         }
         let player_speed = player.movement.get_speed();
         let ix = player_speed.0 * MOVEMENT_SPEED;
@@ -153,8 +169,10 @@ fn main() -> Result<(), String> {
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
         canvas.set_draw_color(Color::RGB(255, 0, 0));
+        canvas.copy(&font_tex, None, Some(Rect::new(200, 200, 200, 100))).expect("drawing text failed");
         canvas.draw_rect(wall.dest).expect("drawing rect failed");
         canvas.draw_rect(player.dest).expect("drawing rect failed");
+
         wall.render(&mut canvas, &wall_tex);
         player.render(&mut canvas, &texture);
         canvas.present();
@@ -167,10 +185,10 @@ fn main() -> Result<(), String> {
         last_frame_time = frame_time;
         // ((frame_times.into_iter().map(|v|frame_time - v).sum::<u128>()) * 1_000_000_000);
         // println!("{:?}", 60f64 / (frame_times.into_iter().map(|v|frame_time - v).sum::<u128>() as f64) * 1_000_000_000f64);
-        println!(
-            "{:?}",
-            60f64 / frame_times.iter().sum::<u128>() as f64 * 1_000_000_000f64
-        );
+        // println!(
+        //     "{:?}",
+        //     60f64 / frame_times.iter().sum::<u128>() as f64 * 1_000_000_000f64
+        // );
         std::thread::sleep(Duration::from_millis(0));
     }
     Ok(())

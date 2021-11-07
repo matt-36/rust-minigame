@@ -1,6 +1,6 @@
 use sdl2::{rect::Rect, render::{Texture, WindowCanvas}};
 
-use crate::entity::Player;
+
 
 #[derive(Clone, Copy)]
 pub struct Colider {
@@ -25,8 +25,8 @@ impl Colider {
 }
 
 pub fn AABB(A: Rect, B: Rect) -> bool {
-    A.x + A.width() as i32 >= B.x
-        && B.x + B.width() as i32 >= A.x
-        && A.y + A.height() as i32 >= B.y
-        && B.y + B.height() as i32 >= A.y
+    A.x + A.width() as i32 -30 >= B.x
+        && B.x + B.width() as i32 -30 >= A.x
+        && A.y + A.height() as i32 -28 >= B.y
+        && B.y + B.height() as i32 -24 >= A.y
 }

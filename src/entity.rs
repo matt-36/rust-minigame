@@ -1,3 +1,5 @@
+use std::{time::Instant};
+
 use sdl2::{keyboard::Keycode, rect::{Point, Rect}, render::{Texture, WindowCanvas}};
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -22,12 +24,21 @@ impl Movement {
 }
 
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Swing {
+    pub start: Instant,
+    pub iteration: u8
+}
+
+
 #[derive(Debug, Clone, Copy)]
 pub struct Player {
     pub sprite: Rect,
     pub dest: Rect,
     pub movement: Movement,
     pub flip: bool,
+    pub swing: Option<Swing>,
+    pub swingsprite: Option<Rect>
 }
 
 impl Player {
@@ -35,18 +46,28 @@ impl Player {
     pub fn new(
         sprite: Rect,
     ) -> Self {
-        let mut dest = Rect::new(0, 0, 32 * 4, 32 * 4);
+        let mut dest = Rect::new(0, 0, sprite.width() * 4, sprite.height() * 4);
         dest.center_on(Point::new(60 as i32 / 2,60 as i32 / 2));
         Self {
             sprite,
             dest,
             movement: Movement::default(),
-            flip: false
+            flip: false,
+            swing: None,
+            swingsprite: None
         }
+    }
+    fn swing_anim(&self, ticks: u32, fpm: u32) -> i32 {
+        let x = 32 * ((ticks / 100) % fpm) as i32;
+        println!("{:?}", x);
+        x
+    }
+    pub fn attack(&mut self) {
+        self.swing = Some(Swing{start: Instant::now(), iteration: 0});
+        self.swingsprite = Some(Rect::new(0, 0, 32, 32))
     }
 
     pub fn render(&mut self, canvas: &mut WindowCanvas, texture: &Texture) {
-
 
         
         
@@ -55,7 +76,7 @@ impl Player {
             1 => false,
             _ => self.flip
         };
-
+        
         canvas.copy_ex(
             texture, 
             Some(self.sprite), 
@@ -65,5 +86,6 @@ impl Player {
             self.flip, 
             false
         ).expect("failed to render player");
+        
     }
 }
