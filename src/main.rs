@@ -6,16 +6,20 @@ mod animation;
 mod entity;
 mod events;
 mod game;
+mod collision;
+
 use std::path::Path;
 
 use sdl2::{event::Event, video::FullscreenType};
 // use sdl2::gfx::framerate::FPSManager;
-use sdl2::image::InitFlag;
+use sdl2::image::{InitFlag, LoadTexture};
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::TextureCreator;
 use std::time::{Duration, SystemTime};
+
+use crate::collision::AABB;
 
 const GAME_SIZE_X: u32 = 768;
 const GAME_SIZE_Y: u32 = 432;
@@ -65,8 +69,13 @@ fn main() -> Result<(), String> {
     let texture = texture_creator
         .create_texture_from_surface(&temp_surface)
         .map_err(|e| e.to_string())?;
+    let wall_tex = texture_creator.load_texture("assets/yellow.png")?;
     let timer = sdl_context.timer()?;
     let mut player = entity::Player::new(Rect::new(0, 0, 32, 32));
+    let mut wall = collision::Colider::new(
+        Rect::new(0, 0, 12, 80),
+        Rect::new(500, 70, 12*4, 80*4)
+    );
 
     // let fpsmanager = FPSManager::new();
     let mut fullscreen = false;
@@ -133,9 +142,20 @@ fn main() -> Result<(), String> {
             player.sprite.x = something(timer.ticks(), 4);
         }
         let player_speed = player.movement.get_speed();
-        player.dest.x += player_speed.0 * MOVEMENT_SPEED;
-        player.dest.y += player_speed.1 * MOVEMENT_SPEED;
-
+        let ix = player_speed.0 * MOVEMENT_SPEED;
+        let iy = player_speed.1 * MOVEMENT_SPEED;
+        player.dest.x += ix;
+        player.dest.y += iy;
+        if AABB(player.dest, wall.dest) {
+            player.dest.x -= ix;
+            player.dest.y -= iy;
+        }
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
+        canvas.clear();
+        canvas.set_draw_color(Color::RGB(255, 0, 0));
+        canvas.draw_rect(wall.dest).expect("drawing rect failed");
+        canvas.draw_rect(player.dest).expect("drawing rect failed");
+        wall.render(&mut canvas, &wall_tex);
         player.render(&mut canvas, &texture);
         canvas.present();
         let frame_time = SystemTime::now();

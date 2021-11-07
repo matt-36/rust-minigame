@@ -46,7 +46,6 @@ impl Player {
     }
 
     pub fn render(&mut self, canvas: &mut WindowCanvas, texture: &Texture) {
-        canvas.clear();
 
 
         
