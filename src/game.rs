@@ -1,3 +1,9 @@
 
 
 
+struct Game;
+
+
+impl Game {
+    
+}

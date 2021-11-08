@@ -8,8 +8,9 @@ mod events;
 mod game;
 mod collision;
 
-
+use rand;
 use sdl2::mouse::MouseButton;
+use sdl2::sys::random;
 use sdl2::{event::Event, video::FullscreenType};
 // use sdl2::gfx::framerate::FPSManager;
 use sdl2::image::{InitFlag, LoadTexture};
@@ -57,15 +58,9 @@ fn main() -> Result<(), String> {
         .present_vsync()
         .build()
         .map_err(|e| e.to_string())?;
-    canvas.set_integer_scale(true);
+    canvas.set_integer_scale(true)?;
     println!("Using SDL_Renderer \"{}\"", canvas.info().name);
     canvas.set_draw_color(Color::RGB(0, 0, 0));
-    // clears the canvas with the color we set in `set_draw_color`.
-    canvas.clear();
-    // However the canvas has not been updated to the window yet, everything has been processed to
-    // an internal buffer, but if we want our buffer to be displayed on the window, we need to call
-    // `present`. We need to call this everytime we want to render a new frame on the window.
-    canvas.present();
 
     // this struct manages textures. For lifetime reasons, the canvas cannot directly create
     // textures, you have to create a `TextureCreator` instead.
@@ -75,25 +70,29 @@ fn main() -> Result<(), String> {
     let _swing_tex = texture_creator.load_texture("assets/swoosh.png")?;
 
     let timer = sdl_context.timer()?;
-    let mut player = entity::Player::new(Rect::new(0, 6, 32, 32));
+    let mut player = entity::Player::new(Rect::new(0, 96, 32, 32));
+    let mut player2 = entity::Player::new(Rect::new(0, 6, 32, 32));
     let wall = collision::Colider::new(
-        Rect::new(0, 0, 12, 80),
-        Rect::new(500, 70, 12*4, 80*4)
+        Rect::new(0, 0, 1200, 1200),
+        Rect::new(200, 50, 120*4, 120*4)
     );
-    let font = _ttf_context.load_font("assets/font/Roboto-Bold.ttf", 128)?;
-    let font_surface = font
-        .render("Hello Rust!")
-        .blended(Color::RGBA(255, 0, 0, 255))
+    let font = _ttf_context.load_font("assets/font/Roboto-Bold.ttf", 256)?;
+    let mut font_surface = font
+        .render("N/A")
+        .blended(Color::RGBA(0, 255, 0, 255))
         .map_err(|e| e.to_string())?;
     
-    let font_tex = texture_creator.create_texture_from_surface(font_surface).unwrap();
-    
+    let mut font_tex = texture_creator.create_texture_from_surface(font_surface).unwrap();
+    let obama_tex = texture_creator.load_texture("assets/obama.jpg")?;
     // let fpsmanager = FPSManager::new();
     let mut fullscreen = false;
     let mut event_pump = sdl_context.event_pump()?;
     let mut frame_times = [0u128; 60];
     let mut frames = 0;
     let mut last_frame_time = SystemTime::now();
+    let mut r = 255;
+    let mut g = 0;
+    let mut b = 0;
     'running: loop {
         // get the inputs here
         for event in event_pump.poll_iter() {
@@ -162,19 +161,20 @@ fn main() -> Result<(), String> {
         let iy = player_speed.1 * MOVEMENT_SPEED;
         player.dest.x += ix;
         player.dest.y += iy;
-        if AABB(player.dest, wall.dest) {
-            player.dest.x -= ix;
-            player.dest.y -= iy;
-        }
+        // if AABB(player.dest, wall.dest) {
+        //     player.dest.x -= ix;
+        //     player.dest.y -= iy;
+        // }
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
         canvas.set_draw_color(Color::RGB(255, 0, 0));
-        canvas.copy(&font_tex, None, Some(Rect::new(200, 200, 200, 100))).expect("drawing text failed");
         canvas.draw_rect(wall.dest).expect("drawing rect failed");
         canvas.draw_rect(player.dest).expect("drawing rect failed");
 
-        wall.render(&mut canvas, &wall_tex);
+        wall.render(&mut canvas, &obama_tex);
         player.render(&mut canvas, &texture);
+        player2.render(&mut canvas, &texture);
+        canvas.copy(&font_tex, None, Some(Rect::new(200, 200, 200, 100))).expect("drawing text failed");
         canvas.present();
         let frame_time = SystemTime::now();
         frame_times[frames % 60] = frame_time
@@ -183,6 +183,24 @@ fn main() -> Result<(), String> {
             .as_nanos();
         frames += 1;
         last_frame_time = frame_time;
+        let fps = 60f64 / frame_times.iter().sum::<u128>() as f64 * 1_000_000_000f64;
+        if r as u8 > 255u8 {
+            // r-=rand::rng.gen::<i32>;
+            r-=1;
+        } else {
+            r+=1
+        }
+        if g as u8 > 255u8 {
+            g-=1;
+        } else {
+            g+=1;
+        }
+
+        font_surface = font
+        .render("obama")
+        .blended(Color::RGBA(r as u8, g as u8, b as u8, 255))
+        .map_err(|e| e.to_string())?;
+        font_tex = texture_creator.create_texture_from_surface(font_surface).unwrap();
         // ((frame_times.into_iter().map(|v|frame_time - v).sum::<u128>()) * 1_000_000_000);
         // println!("{:?}", 60f64 / (frame_times.into_iter().map(|v|frame_time - v).sum::<u128>() as f64) * 1_000_000_000f64);
         // println!(
