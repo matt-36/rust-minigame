@@ -1,15 +1,17 @@
+use std::marker::PhantomData;
+
 use sdl2::{rect::Rect, render::{Texture, WindowCanvas}};
 
 
 
-#[derive(Clone, Copy)]
-pub struct Colider {
+pub struct Colider<'a> {
     pub sprite: Rect,
     pub dest: Rect,
     pub id: i32,
+    phantom: PhantomData<&'a i32>
 }
 
-impl Colider {
+impl <'a> Colider<'a> {
     pub fn new(
         sprite: Rect,
         dest: Rect,
@@ -18,7 +20,8 @@ impl Colider {
         Self {
             sprite,
             dest,
-            id
+            id,
+            phantom: PhantomData
         }
     }
 

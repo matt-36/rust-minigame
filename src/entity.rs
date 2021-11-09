@@ -1,6 +1,6 @@
-use std::{time::Instant};
+use std::{marker::PhantomData, time::Instant};
 
-use sdl2::{EventPump, event::Event, keyboard::Keycode, rect::{Point, Rect}, render::{Texture, WindowCanvas}};
+use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::{Point, Rect}, render::{Texture, WindowCanvas}};
 
 use crate::controller::Controller;
 
@@ -26,15 +26,15 @@ impl Movement {
 }
 
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Swing {
     pub start: Instant,
     pub iteration: u8
 }
 
 
-#[derive(Debug, Clone, Copy)]
-pub struct Player {
+#[derive(Debug)]
+pub struct Player<'a> {
     pub sprite: Rect,
     pub dest: Rect,
     pub movement: Movement,
@@ -42,10 +42,12 @@ pub struct Player {
     pub swing: Option<Swing>,
     pub swingsprite: Option<Rect>,
     pub id: i32,
-    pub controller: Controller
+    pub controller: Controller,
+    pub showhitbox: bool,
+    phantom: PhantomData<&'a i32>
 }
 
-impl Player {
+impl <'a> Player<'a> {
     /// initialize a player
     pub fn new(
         sprite: Rect,
@@ -62,8 +64,13 @@ impl Player {
             swing: None,
             swingsprite: None,
             id,
-            controller
+            controller,
+            showhitbox: false,
+            phantom: PhantomData
         }
+    }
+    pub fn togglehitbox(&mut self) {
+        self.showhitbox = !self.showhitbox;
     }
     fn swing_anim(&self, ticks: u32, fpm: u32) -> i32 {
         let x = 32 * ((ticks / 100) % fpm) as i32;
@@ -75,14 +82,11 @@ impl Player {
         self.swingsprite = Some(Rect::new(0, 0, 32, 32))
     }
 
-    pub fn handle(&mut self, canvas: &mut WindowCanvas, event: &Event, fullscreen: &mut bool) {
-        self.controller.handle(event, canvas, self, fullscreen);
+    pub fn handle(&mut self, event: &Event) {
+        self.controller.handle(event, self);
     }
 
     pub fn render(&mut self, canvas: &mut WindowCanvas, texture: &Texture) {
-
-        
-        
         self.flip = match (self.movement.1 as i8) - (self.movement.3 as i8) {
             -1 => true,
             1 => false,
@@ -98,6 +102,12 @@ impl Player {
             self.flip, 
             false
         ).expect("failed to render player");
+        
+        if self.showhitbox {
+            canvas.set_draw_color(Color::RGB(255, 0, 0));
+            canvas.draw_rect(self.dest).expect("drawing rect failed");
+            canvas.set_draw_color(Color::RGB(0, 0, 0));
+        }
         
     }
 }
