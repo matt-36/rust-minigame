@@ -1,6 +1,8 @@
 use std::{time::Instant};
 
-use sdl2::{keyboard::Keycode, rect::{Point, Rect}, render::{Texture, WindowCanvas}};
+use sdl2::{EventPump, event::Event, keyboard::Keycode, rect::{Point, Rect}, render::{Texture, WindowCanvas}};
+
+use crate::controller::Controller;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Movement(pub bool, pub bool, pub bool, pub bool);
@@ -38,23 +40,29 @@ pub struct Player {
     pub movement: Movement,
     pub flip: bool,
     pub swing: Option<Swing>,
-    pub swingsprite: Option<Rect>
+    pub swingsprite: Option<Rect>,
+    pub id: i32,
+    pub controller: Controller
 }
 
 impl Player {
     /// initialize a player
     pub fn new(
         sprite: Rect,
+        id: i32,
     ) -> Self {
         let mut dest = Rect::new(0, 0, sprite.width() * 4, sprite.height() * 4);
         dest.center_on(Point::new(60 as i32 / 2,60 as i32 / 2));
+        let controller = Controller::new();
         Self {
             sprite,
             dest,
             movement: Movement::default(),
             flip: false,
             swing: None,
-            swingsprite: None
+            swingsprite: None,
+            id,
+            controller
         }
     }
     fn swing_anim(&self, ticks: u32, fpm: u32) -> i32 {
@@ -65,6 +73,10 @@ impl Player {
     pub fn attack(&mut self) {
         self.swing = Some(Swing{start: Instant::now(), iteration: 0});
         self.swingsprite = Some(Rect::new(0, 0, 32, 32))
+    }
+
+    pub fn handle(&mut self, canvas: &mut WindowCanvas, event: &Event, fullscreen: &mut bool) {
+        self.controller.handle(event, canvas, self, fullscreen);
     }
 
     pub fn render(&mut self, canvas: &mut WindowCanvas, texture: &Texture) {

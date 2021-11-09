@@ -6,16 +6,19 @@ use sdl2::{rect::Rect, render::{Texture, WindowCanvas}};
 pub struct Colider {
     pub sprite: Rect,
     pub dest: Rect,
+    pub id: i32,
 }
 
 impl Colider {
     pub fn new(
         sprite: Rect,
-        dest: Rect
+        dest: Rect,
+        id: i32
     ) -> Self {
         Self {
             sprite,
-            dest
+            dest,
+            id
         }
     }
 

@@ -7,7 +7,9 @@ mod entity;
 mod events;
 mod game;
 mod collision;
+mod controller;
 
+use game::Game;
 use rand;
 use sdl2::mouse::MouseButton;
 use sdl2::sys::random;
@@ -61,6 +63,7 @@ fn main() -> Result<(), String> {
     canvas.set_integer_scale(true)?;
     println!("Using SDL_Renderer \"{}\"", canvas.info().name);
     canvas.set_draw_color(Color::RGB(0, 0, 0));
+    let mut game = Game::new();
 
     // this struct manages textures. For lifetime reasons, the canvas cannot directly create
     // textures, you have to create a `TextureCreator` instead.
@@ -70,11 +73,12 @@ fn main() -> Result<(), String> {
     let _swing_tex = texture_creator.load_texture("assets/swoosh.png")?;
 
     let timer = sdl_context.timer()?;
-    let mut player = entity::Player::new(Rect::new(0, 96, 32, 32));
-    let mut player2 = entity::Player::new(Rect::new(0, 6, 32, 32));
+    let mut player = entity::Player::new(Rect::new(0, 96, 32, 32), 1);
+    let mut player2 = entity::Player::new(Rect::new(0, 6, 32, 32), 2);
     let wall = collision::Colider::new(
         Rect::new(0, 0, 1200, 1200),
-        Rect::new(200, 50, 120*4, 120*4)
+        Rect::new(200, 50, 120*4, 120*4),
+        3
     );
     let font = _ttf_context.load_font("assets/font/Roboto-Bold.ttf", 256)?;
     let mut font_surface = font
@@ -96,59 +100,19 @@ fn main() -> Result<(), String> {
     'running: loop {
         // get the inputs here
         for event in event_pump.poll_iter() {
-            // if let Event::KeyDown { repeat: false, .. } | Event::KeyUp { .. } = event {
-            //     println!("recieved {:?}", event);
-            // };
-
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    break 'running;
+            if event == Event::Quit{..} | Event::KeyDown{keycode: Keycode::Escape, ..} {
+                break 'running;
+            };
+            for player in game.players.iter_mut() {
+                let tmp_x = player.dest.x;
+                let tmp_y = player.dest.y;
+                player.handle(&mut canvas, &event, &mut fullscreen);
+                for collider in game.colliders.iter_mut() {
+                    if AABB(player.dest, collider.dest) {
+                        player.dest.x = tmp_x;
+                        player.dest.y = tmp_y;
+                    }
                 }
-                Event::KeyDown {
-                    keycode: Some(Keycode::F11),
-                    ..
-                } => {
-                    // canvas.window_mut().set_size(1920, 1080).expect("fuck");
-                    let window = canvas.window_mut();
-                    window
-                        .set_fullscreen(if fullscreen {
-                            FullscreenType::Desktop
-                        } else {
-                            FullscreenType::Off
-                        })
-                        .expect("fuck");
-                    let size = window.size();
-                    canvas
-                        .set_scale(
-                            (size.0 as f32) / (GAME_SIZE_X as f32),
-                            (size.1 as f32) / (GAME_SIZE_Y as f32),
-                        )
-                        .expect("fuck");
-                    fullscreen = !fullscreen;
-                }
-
-                Event::KeyDown {
-                    keycode: Some(keycode),
-                    ..
-                } => {
-                    player.movement.set_by_key(keycode, true);
-                }
-                Event::KeyUp {
-                    keycode: Some(keycode),
-                    ..
-                } => {
-                    player.movement.set_by_key(keycode, false);
-                },
-                Event::MouseButtonDown {
-                    mouse_btn: MouseButton::Left, ..
-                } => {
-                    player.attack()
-                }
-                _ => {}
             }
         }
 
