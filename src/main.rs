@@ -8,12 +8,12 @@ mod controller;
 mod entity;
 mod events;
 mod game;
-mod minimap;
+mod room;
 
 use game::Game;
 use sdl2::{event::Event, video::FullscreenType};
 // use sdl2::gfx::framerate::FPSManager;
-use sdl2::image::{InitFlag, };
+use sdl2::image::InitFlag;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -73,26 +73,30 @@ fn main() -> Result<(), String> {
         right: Keycode::Right,
     });
     game.add_player(player2, "assets/characters.png");
-    // nice
-    // works but no render
-    // i see
-    // let wall_tex = texture_creator.load_texture("assets/yellow.png")?;
+
+    let mut camera = canvas.viewport(); // to start with so that width is right and stuff
+                                        //
+                                        // i dont think viewport works like that ill show u
+                                        // rn the viewport is moved with the character
+                                        // it doesnt actually do anything other than move the render borders
+                                        //
+                                        // they are just rects lol
+                                        // let wall_tex = texture_creator.load_texture("assets/yellow.png")?;
     let wall = collision::Collider::new(
         Rect::new(0, 0, 1200, 1200),
         Rect::new(200, 50, 120 * 4, 120 * 4),
         3,
     );
-    /**
+    /*
      *
      * ye look at aabb i reduced the thing cos the hitboxes wouldnt rescale
-     * look at it 
+     * look at it
      *
      * texture only has to live as long as player
      */
-    // game.add_collider(wall, Some("assets/obama.jpg"));
+    game.add_collider(wall, Some("assets/obama.jpg"));
 
     // let _swing_tex = texture_creator.load_texture("assets/swoosh.png")?;
-
     let timer = sdl_context.timer()?;
 
     let mut fullscreen = false;
@@ -100,6 +104,7 @@ fn main() -> Result<(), String> {
     let mut frame_times = [0u128; 60];
     let mut frames = 0;
     let mut last_frame_time = SystemTime::now();
+    let mut fps = 0f64;
     'running: loop {
         // get the inputs here
         for event in event_pump.poll_iter() {
@@ -116,7 +121,7 @@ fn main() -> Result<(), String> {
                     // canvas.window_mut().set_size(1920, 1080).expect("fuck");
                     let window = canvas.window_mut();
                     window
-                        .set_fullscreen(if fullscreen {
+                        .set_fullscreen(if !fullscreen {
                             FullscreenType::Desktop
                         } else {
                             FullscreenType::Off
@@ -154,18 +159,19 @@ fn main() -> Result<(), String> {
             .expect("game failed to update/render"); // it happens here cos the function doesnt render players yet
                                                      //still nothing :(
         canvas.present(); // its cos we never define the x and y of the player
-
-        // fps stuff
-        // TODO create an fps manager to reduce mess like this
-        // let frame_time = SystemTime::now();
-        // frame_times[frames % 60] = frame_time
-        //     .duration_since(last_frame_time)
-        //     .unwrap()
-        //     .as_nanos();
-        // frames += 1;
-        // last_frame_time = frame_time;
-        // let fps = 60f64 / frame_times.iter().sum::<u128>() as f64 * 1_000_000_000f64;
+                          // println!("")
+                          // fps stuff
+                          // TODO create an fps manager to reduce mess like this
+        let frame_time = SystemTime::now();
+        frame_times[frames % 60] = frame_time
+            .duration_since(last_frame_time)
+            .unwrap()
+            .as_nanos();
+        frames += 1;
+        last_frame_time = frame_time;
+        fps = 60f64 / frame_times.iter().sum::<u128>() as f64 * 1_000_000_000f64; // ye it started working
         std::thread::sleep(Duration::from_millis(0));
-    }
+    };
+    println!("{}", fps);
     Ok(())
 }

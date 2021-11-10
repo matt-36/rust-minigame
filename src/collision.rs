@@ -24,8 +24,14 @@ impl<'a> Collider<'a> {
         }
     }
 
-    pub fn render(&self, canvas: &mut WindowCanvas, texture: &Texture) {
-        canvas.copy(texture, self.sprite, self.dest).expect("rendering failed");
+    pub fn render(&self, canvas: &mut WindowCanvas, texture: &Texture, camera: &Rect) {
+        let mut dest = self.dest;
+        dest.offset(-camera.x, -camera.y);
+        canvas.copy(
+            texture, 
+            Some(self.sprite), 
+            Some(dest)
+        ).expect("rendering failed");
     }
 }
 
