@@ -21,8 +21,12 @@ pub struct Game<'a> {
     pub texture_creator: &'a TextureCreator<WindowContext>,
 }
 
-const MINIMAP_SIZE_X: f32 = GAME_SIZE_X as f32 / 4f32;
-const MINIMAP_SIZE_Y: f32 = GAME_SIZE_Y as f32 / 4f32;
+const MINIMAP_POS_X: i32 = 0;
+const MINIMAP_POS_Y: i32 = 0;
+const MINIMAP_SIZE_X: u32 = GAME_SIZE_X / 4;
+const MINIMAP_SIZE_Y: u32 = GAME_SIZE_Y / 4;
+const MINIMAP_MARGIN_X: u32 = 16;
+const MINIMAP_MARGIN_Y: u32 = 16;
 
 impl<'a> Game<'a> {
     pub fn new(texture_creator: &'a TextureCreator<WindowContext>) -> Game<'a> {
@@ -103,16 +107,21 @@ impl<'a> Game<'a> {
     }
 
     pub fn render_minimap(&mut self, canvas: &mut WindowCanvas) {
-        let x = Rect::new(0, 0, GAME_SIZE_X / 4, GAME_SIZE_Y / 4);
+        let x = Rect::new(
+            MINIMAP_POS_X,
+            MINIMAP_POS_Y,
+            MINIMAP_SIZE_X + 2 * MINIMAP_MARGIN_X,
+            MINIMAP_SIZE_Y + 2 * MINIMAP_MARGIN_Y,
+        );
         canvas.set_draw_color(Color::RGB(0, 0, 0));
-        canvas.fill_rect(x);
+        canvas.fill_rect(x).unwrap();
         canvas.set_draw_color(Color::RGB(0, 255, 0));
-        canvas.draw_rect(x);
+        canvas.draw_rect(x).unwrap();
 
-        /**
+        /*
          *  minimum border
          *     U
-         * ////////////////////////////////////////////
+         * /////////////////////////////////////////s//
          * ///                                      s//  < minimum border
          * ///   P                                  s//
          * ///                                      s//
@@ -124,7 +133,7 @@ impl<'a> Game<'a> {
          * ///                         x        x   s//
          * ///                         xxxxxxxxxx   s//
          * ///                                      s//
-         * ////////////////////////////////////////////
+         * /////////////////////////////////////////s//
          *
          * give a number of rects to it, then it will render each one somewhere
          * give colour by id or something
@@ -139,78 +148,43 @@ impl<'a> Game<'a> {
         }
         rects.push(canvas.viewport());
 
-        // println!("{:?}", canvas.viewport());
+        macro_rules! minmax {
+            ($varname:ident $more_or_less:tt $method:ident) => {
+                let $varname = rects
+                    .iter()
+                    .reduce(|r1, r2| if r1.$method() $more_or_less r2.$method() { r1 } else { r2 })
+                    .unwrap()
+                    .$method() as f32;
+            };
+        }
+        minmax!(min_x < left);
+        minmax!(max_x > right);
+        minmax!(min_y < top);
+        minmax!(max_y > bottom);
+        let (dist_x, dist_y) = ((max_x - min_x), (max_y - min_y));
+        let (ratio_x, ratio_y) = (
+            dist_x / MINIMAP_SIZE_X as f32,
+            dist_y / MINIMAP_SIZE_Y as f32,
+        );
+        let ratio = ratio_x.max(ratio_y);
 
-        // rects.iter().for_each(|r| {
-        //     println!(
-        //         "{:?}",
-        //         (r.x, r.y, r.x + r.width() as i32, r.y + r.height() as i32)
-        //     )
-        // });
-
-        let min_x = rects
-            .iter()
-            .reduce(|r1, r2| if r1.left() < r2.left() { r1 } else { r2 })
-            .unwrap()
-            .left() as f32;
-        let max_x = rects
-            .iter()
-            .reduce(|r1, r2| if r1.right() > r2.right() { r1 } else { r2 })
-            .unwrap()
-            .right() as f32;
-        // let max_x = max_x.x as f32 + max_x.width() as f32;
-
-        let min_y = rects
-            .iter()
-            .reduce(|r1, r2| if r1.top() < r2.top() { r1 } else { r2 })
-            .unwrap()
-            .top() as f32;
-        let max_y = rects
-            .iter()
-            .reduce(|r1, r2| if r1.bottom() > r2.bottom() { r1 } else { r2 })
-            .unwrap()
-            .bottom() as f32;
-        // let max_y = max_y.y as f32 + max_y.height() as f32;
-        // println!("");
-        // rects
-        //     .iter()
-        //     .for_each(|r| println!("{}, {}", r.y, r.y + r.height() as i32));
-        // println!("{}\n", max_y);
-
-        canvas.draw_rect(Rect::new(
-            0,
-            0,
-            MINIMAP_SIZE_X as u32,
-            MINIMAP_SIZE_Y as u32,
-        ));
-        // println!("{:?}", (min_x, min_y, max_x, max_y));
+        // apply offset
+        let offset_x = (dist_x / ratio_x - dist_x / ratio) as i32 / 2
+            + MINIMAP_POS_X
+            + MINIMAP_MARGIN_X as i32;
+        let offset_y = (dist_y / ratio_y - dist_y / ratio) as i32 / 2
+            + MINIMAP_POS_Y
+            + MINIMAP_MARGIN_Y as i32;
 
         canvas.set_draw_color(Color::RGB(255, 255, 255));
         for rect in rects.iter() {
-            let x = ((rect.left() as f32 - min_x) / (max_x - min_x) * MINIMAP_SIZE_X) as i32;
-            let y = ((rect.top() as f32 - min_y) / (max_y - min_y) * MINIMAP_SIZE_Y) as i32;
-            let w = (rect.width() as f32 / (max_x - min_x) * MINIMAP_SIZE_X) as u32;
-            let h = (rect.height() as f32 / (max_y - min_y) * MINIMAP_SIZE_Y) as u32;
+            let x = ((rect.left() as f32 - min_x) / ratio) as i32 + offset_x;
+            let y = ((rect.top() as f32 - min_y) / ratio) as i32 + offset_y;
+            let w = (rect.width() as f32 / ratio) as u32;
+            let h = (rect.height() as f32 / ratio) as u32;
             canvas.draw_rect(Rect::new(x, y, w, h)).unwrap();
         }
-
         canvas.set_draw_color(Color::RGB(0, 0, 0));
-        // canvas.set_draw_color(Color::RGB(0, 0, 0));
-        // for player in self.players.iter() {
-        //     let mut y = rand::thread_rng();
-        //     canvas.set_draw_color(Color::RGB(
-        //         y.gen_range(0..255),
-        //         y.gen_range(0..255),
-        //         y.gen_range(0..255),
-        //     ));
-        //     canvas.draw_rect(Rect::new(
-        //         player.dest.x / 12 + x.width() as i32 / 2,
-        //         player.dest.y / 12 + x.width() as i32 / 2,
-        //         player.dest.width() / 12,
-        //         player.dest.height() / 12,
-        //     ));
-        //     canvas.set_draw_color(Color::RGB(0, 0, 0));
-        // }
     }
 
     pub fn update(&mut self, canvas: &mut WindowCanvas) -> Result<(), ()> {
