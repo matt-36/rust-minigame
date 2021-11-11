@@ -1,103 +1,81 @@
-use std::collections::HashMap;
-use std::convert::TryInto;
-
-use rand::Rng;
 use sdl2::event::Event;
-use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use sdl2::render::{BlendMode, Texture, TextureCreator, WindowCanvas};
+use sdl2::render::{BlendMode, TextureCreator, WindowCanvas};
+use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::WindowContext;
 
-use crate::collision::{aabb, Collider};
-use crate::controller::Controller;
-use crate::entity::Player;
-use crate::room::{Room, RoomManager};
-use crate::{GAME_SIZE_X, GAME_SIZE_Y};
-
+use crate::rgame::menu::Menu;
+// use crate::room::{Room, RoomManager};
+use crate::constants::*;
+use crate::rgame::room::RoomManager;
+use crate::traits::render::{Render, RenderType};
+use crate::types::collision::Collider;
+use crate::types::controller::Controller;
+use crate::types::entity::Player;
 pub struct Game<'a> {
     pub players: Vec<Player<'a>>,
     pub colliders: Vec<Collider<'a>>,
-    pub textures: HashMap<i32, Texture<'a>>,
     pub texture_creator: &'a TextureCreator<WindowContext>,
     pub camera: Rect,
     pub rooms: RoomManager,
 }
 
-const MINIMAP_POS_X: i32 = 0;
-const MINIMAP_POS_Y: i32 = 0;
-const MINIMAP_SIZE_X: u32 = GAME_SIZE_X / 5;
-const MINIMAP_SIZE_Y: u32 = GAME_SIZE_Y / 5;
-const MINIMAP_MARGIN_X: u32 = 16;
-const MINIMAP_MARGIN_Y: u32 = 16;
-
 impl<'a> Game<'a> {
     pub fn new(texture_creator: &'a TextureCreator<WindowContext>) -> Game<'a> {
         let players = Vec::new();
         let colliders = Vec::new();
-        let textures = HashMap::new();
         let camera = Rect::new(0, 0, GAME_SIZE_X, GAME_SIZE_Y);
         Self {
             players,
             colliders,
-            textures,
             texture_creator,
             camera,
             rooms: Default::default(),
         }
     }
-    pub fn add_player(&mut self, player: Player<'a>, filename: &str) {
-        println!("{} {}", player.id, filename); // its the same texture but the src rects have different y coordinates
-        self.textures
-            .entry(player.id)
-            .or_insert(self.texture_creator.load_texture(filename).unwrap().into());
+    pub fn add_player(&mut self, player: Player<'a>) {
         self.players.push(player);
-        // println!("{:?}", );
-    } // texture? is that needed? ye colliders can have textures... we need
-      //to add decoration one also
-      // how about having filename be option?
-      // then we can invis hitboxes
-      // ye lets do it
-    pub fn add_collider(&mut self, collider: Collider<'a>, filename: Option<&str>) {
-        if let Some(filename) = filename {
-            self.textures
-                .entry(collider.id)
-                .or_insert(self.texture_creator.load_texture(filename).unwrap().into());
-        };
+    }
+
+    pub fn add_collider(&mut self, collider: Collider<'a>) {
         self.colliders.push(collider);
-        // println!("{:?}", );
     }
     pub fn tick(&mut self, ticks: u32) {
         for player in self.players.iter_mut() {
-            let tmp_x = player.dest.x;
-            let tmp_y = player.dest.y;
+            let x = player.dest.x;
+            let y = player.dest.y;
             let speed = player.movement.get_speed();
+            macro_rules! collision_loop {
+                ($axis:tt, $label:tt) => {
+                    $label: loop {
+                        collision_loop!(self.rooms.get_room_rects_offset(player.dest.center()), $axis, $label);
+                        collision_loop!(self.colliders.iter().map(|coll|coll.dest), $axis, $label);
+                        break $label;
+                    }
+                };
+                ($arr:expr, $axis:tt, $label:tt) => {
+                    for item in $arr {
+                        if player.dest.has_intersection(item) {
+                            player.dest.$axis = $axis;
+                            break $label;
+                        }
+                    }
+                };
+            }
+
             player.dest.x += speed.0 * 2;
-            for collider in self.colliders.iter() {
-                if player.dest.has_intersection(collider.dest) {
-                    player.dest.x = tmp_x;
-                    break;
-                }
-            }
-            player.dest.y += speed.1 * 2; // before we got speed and multiplied it by the movement speed constant
-            for collider in self.colliders.iter() {
-                // oh my idea is to ute player pos before collider for and then check each colliders AABB
-                if player.dest.has_intersection(collider.dest) {
-                    player.dest.y = tmp_y;
-                    break;
-                }
-            }
-            // checks points on player and collider and see if they collide
-            //
+            collision_loop!(x, 'x_collision);
+            player.dest.y += speed.1 * 2;
+            collision_loop!(y, 'y_collision);
 
             if player.movement.should_play_animation()
-                && ((tmp_x != player.dest.x) || tmp_y != player.dest.y)
+                && ((x != player.dest.x) || y != player.dest.y)
             {
                 player.sprite.x = (32 * (((ticks as f32 / 120f32) % 4f32) as f32) as i32) + 8;
-            } // now we just need to seperate controller by arrow and wasd
+            }
         }
     }
-
     pub fn handle(&mut self, event: &Event) {
         for player in self.players.iter_mut() {
             player.handle(event)
@@ -107,6 +85,49 @@ impl<'a> Game<'a> {
     pub fn togglehitboxes(&mut self) {
         for player in &mut self.players {
             player.togglehitbox()
+        }
+    }
+
+    pub fn rendermenu(&self, canvas: &mut WindowCanvas, menu: Menu) {
+        menu.render(canvas);
+    }
+
+    pub fn renderui(&mut self, canvas: &mut WindowCanvas, ttf_context: &Sdl2TtfContext) {
+        self.render_minimap(canvas);
+        for player in self.players.iter() {
+            let font = ttf_context
+                .load_font("assets/font/ARCADECLASSIC.TTF", 256)
+                .unwrap();
+            let font_surface = font
+                .render(&player.health.to_string() as &str)
+                .blended(Color::RGBA(0, 255, 0, 255))
+                .map_err(|e| e.to_string())
+                .unwrap();
+            let font_tex = self
+                .texture_creator
+                .create_texture_from_surface(font_surface)
+                .unwrap();
+            let x = self.camera.right() - (100 * player.id);
+            let y = self.camera.top() + 6;
+            let mut dest = Rect::new(x, y, 32, 32);
+            dest.x -= self.camera.x;
+            dest.y -= self.camera.y;
+            let mut src = player.sprite;
+            src.x = 8;
+            src.h = (src.h as f32 / 1.5) as i32;
+            canvas.copy(player.texture, src, dest).unwrap();
+            canvas
+                .copy(
+                    &font_tex,
+                    None,
+                    Some(Rect::new(
+                        (x + 30) - self.camera.x,
+                        (y + 5) - self.camera.y,
+                        50,
+                        30,
+                    )),
+                )
+                .expect("drawing text failed");
         }
     }
 
@@ -193,7 +214,8 @@ impl<'a> Game<'a> {
                 Rect::new(x, y, w, h)
             }};
         }
-        canvas.draw_rect(get_draw_rect!(self.camera));
+
+        canvas.draw_rect(get_draw_rect!(self.camera)).unwrap();
 
         for rect in rects {
             canvas.draw_rect(get_draw_rect!(rect)).unwrap();
@@ -205,7 +227,7 @@ impl<'a> Game<'a> {
             src.h = (src.h as f32 / 1.5) as i32;
             canvas
                 .copy(
-                    self.textures.get(&player.id).unwrap(),
+                    player.texture,
                     src,
                     Rect::from_center(
                         tmp.center(),
@@ -215,17 +237,23 @@ impl<'a> Game<'a> {
                 )
                 .unwrap();
         }
-        for collider in self.colliders.iter() {
-            // src.set_height(10);
-            // src.set_width(10);
-            // canvas
-            //     .copy(
-            //         self.textures.get(&collider.id).unwrap(),
-            //         collider.sprite,
-            //         get_draw_rect!(collider.sprite),
-            //     )
-            //     .unwrap();
+
+        for index in self.rooms.rooms.iter().map(|thing| thing.0.clone()).collect::<Vec<_>>() {
+            for wall in self.rooms.get_room_rects_offset(index.clone()) {
+                canvas.draw_rect(get_draw_rect!(wall)).unwrap();
+            }
         }
+        // for collider in self.colliders.iter() {
+        //     // src.set_height(10);
+        //     // src.set_width(10);
+        //     // canvas
+        //     //     .copy(
+        //     //         self.textures.get(&collider.id).unwrap(),
+        //     //         collider.sprite,
+        //     //         get_draw_rect!(collider.sprite),
+        //     //     )
+        //     //     .unwrap();
+        // }
 
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.set_viewport(prev_viewport);
@@ -249,19 +277,47 @@ impl<'a> Game<'a> {
         }
     }
 
-    pub fn update(&mut self, canvas: &mut WindowCanvas) -> Result<(), ()> {
+    pub fn update(
+        &mut self,
+        canvas: &mut WindowCanvas,
+        ttf_context: &Sdl2TtfContext,
+    ) -> Result<(), ()> {
         for collider in &mut self.colliders {
-            let texture = self.textures.get(&collider.id).unwrap();
-            collider.render(canvas, texture, &self.camera);
+            collider.render(
+                canvas,
+                RenderType::Canvas {
+                    camera: &self.camera,
+                },
+            );
         }
         for player in &mut self.players {
-            let texture = self.textures.get(&player.id).unwrap();
-            player.render(canvas, texture, &self.camera);
+            // player.render_old(canvas, &self.camera);
+            player.pre_render();
+            player.render(
+                canvas,
+                RenderType::Canvas {
+                    camera: &self.camera,
+                },
+            );
+            if player.showhitbox {
+                player.render(
+                    canvas,
+                    RenderType::HitBox {
+                        camera: &self.camera,
+                    },
+                );
+            }
         }
+        self.rooms.get_room(self.camera.center()).render(
+            canvas,
+            RenderType::Canvas {
+                camera: &self.camera,
+            },
+        );
         self.update_camera_position();
         // the textures are loaded in main function
         // with game
-        self.render_minimap(canvas);
+        self.renderui(canvas, ttf_context);
 
         Ok(())
     }

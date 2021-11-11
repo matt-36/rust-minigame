@@ -1,19 +1,28 @@
+#![allow(unused_doc_comments, unreachable_patterns)]
 extern crate sdl2;
 extern crate serde;
 extern crate serde_json;
 
-mod animation;
-mod collision;
-mod controller;
-mod entity;
-mod events;
-mod game;
-mod room;
+pub mod constants;
+pub mod game;
+pub mod reference;
+pub mod rgame;
+pub mod traits;
+pub mod types;
+#[macro_use]
+mod macros;
+mod config;
+
+// pub mod types;
+use crate::types::{collision, controller, entity};
+
+use rgame::{menu};
 
 use game::Game;
+
 use sdl2::{event::Event, video::FullscreenType};
 // use sdl2::gfx::framerate::FPSManager;
-use sdl2::image::InitFlag;
+use sdl2::image::{InitFlag, LoadTexture};
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -21,18 +30,17 @@ use sdl2::render::TextureCreator;
 use std::time::{Duration, SystemTime};
 
 use crate::controller::{Controller, Moveset};
+use crate::menu::Menu;
 
-const GAME_SIZE_X: u32 = 768;
-const GAME_SIZE_Y: u32 = 432;
+use crate::constants::*;
 
-fn move_anim(ticks: u32, fpm: u32) -> i32 {
+fn _move_anim(ticks: u32, fpm: u32) -> i32 {
     let x = 32 * ((ticks / 100) % fpm) as i32;
     println!("{:?}", x);
     x
 }
 
 fn main() -> Result<(), String> {
-    let MOVEMENT_SPEED = 4;
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
     let _image_context = sdl2::image::init(InitFlag::PNG | InitFlag::JPG)?;
@@ -60,32 +68,31 @@ fn main() -> Result<(), String> {
     println!("Using SDL_Renderer \"{}\"", canvas.info().name);
     canvas.set_draw_color(Color::RGB(0, 0, 0));
 
+    let menu = menu::Menu::new();
+
     let texture_creator: TextureCreator<_> = canvas.texture_creator();
     let mut game = Game::new(&texture_creator);
-
-    let player = entity::Player::new(Rect::new(0, 40, 16, 24), 1);
-    game.add_player(player, "assets/characters.png");
-    let mut player2 = entity::Player::new(Rect::new(8, 8, 16, 24), 2);
+    let texture = texture_creator.load_texture("assets/characters.png")?;
+    let obama = texture_creator.load_texture("assets/obama.jpg")?;
+    let mut player = entity::Player::new(Rect::new(0, 40, 16, 24), 1, &texture);
+    player.dest.center_on(game.camera.center());
+    game.add_player(player);
+    let mut player2 = entity::Player::new(Rect::new(8, 8, 16, 24), 2, &texture);
     player2.set_moveset(Moveset {
         up: Keycode::Up,
         left: Keycode::Left,
         down: Keycode::Down,
         right: Keycode::Right,
     });
-    game.add_player(player2, "assets/characters.png");
+    player2.dest.center_on(game.camera.center());
+    game.add_player(player2);
 
-    let mut camera = canvas.viewport(); // to start with so that width is right and stuff
-                                        //
-                                        // i dont think viewport works like that ill show u
-                                        // rn the viewport is moved with the character
-                                        // it doesnt actually do anything other than move the render borders
-                                        //
-                                        // they are just rects lol
-                                        // let wall_tex = texture_creator.load_texture("assets/yellow.png")?;
+    // let wall_tex = texture_creator.load_texture("assets/yellow.png")?;
     let wall = collision::Collider::new(
         Rect::new(0, 0, 1200, 1200),
         Rect::new(200, 50, 120 * 4, 120 * 4),
         3,
+        &obama,
     );
     /*
      *
@@ -94,7 +101,7 @@ fn main() -> Result<(), String> {
      *
      * texture only has to live as long as player
      */
-    game.add_collider(wall, Some("assets/obama.jpg"));
+    // game.add_collider(wall);
 
     // let _swing_tex = texture_creator.load_texture("assets/swoosh.png")?;
     let timer = sdl_context.timer()?;
@@ -119,15 +126,15 @@ fn main() -> Result<(), String> {
                     ..
                 } => {
                     // canvas.window_mut().set_size(1920, 1080).expect("fuck");
-                    let window = canvas.window_mut();
-                    window
+                    canvas
+                        .window_mut()
                         .set_fullscreen(if !fullscreen {
                             FullscreenType::Desktop
                         } else {
                             FullscreenType::Off
                         })
                         .expect("failed changing to or from fullscreen");
-                    let size = window.size();
+                    let size = canvas.window().size();
                     canvas
                         .set_scale(
                             (size.0 as f32) / (GAME_SIZE_X as f32),
@@ -155,7 +162,7 @@ fn main() -> Result<(), String> {
         // before i would check collision before rendering
         //  ok lets do that
         canvas.clear();
-        game.update(&mut canvas)
+        game.update(&mut canvas, &_ttf_context)
             .expect("game failed to update/render"); // it happens here cos the function doesnt render players yet
                                                      //still nothing :(
         canvas.present(); // its cos we never define the x and y of the player
@@ -171,7 +178,7 @@ fn main() -> Result<(), String> {
         last_frame_time = frame_time;
         fps = 60f64 / frame_times.iter().sum::<u128>() as f64 * 1_000_000_000f64; // ye it started working
         std::thread::sleep(Duration::from_millis(0));
-    };
+    }
     println!("{}", fps);
     Ok(())
 }

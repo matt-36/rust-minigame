@@ -8,6 +8,7 @@ use sdl2::rect::Point;
 use sdl2::rect::Rect;
 use std::time::Duration;
 
+#[allow(dead_code)]
 fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
