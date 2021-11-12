@@ -154,19 +154,19 @@ impl<'a> Game<'a> {
         /*
          *  minimum border
          *     U
-         * /////////////////////////////////////////s//
-         * ///                                      s//  < minimum border
-         * ///   P                                  s//
-         * ///                                      s//
-         * ///                                      s//
-         * ///                                      s//
-         * ///                                      s//
-         * ///                         xxxxxxxxxx   s//
-         * ///                         x        x   s//
-         * ///                         x        x   s//
-         * ///                         xxxxxxxxxx   s//
-         * ///                                      s//
-         * /////////////////////////////////////////s//
+         * //s////////////////////////////////////////
+         * //s                                     ///  < minimum border
+         * //s   P                                 ///
+         * //s                                     ///
+         * //s                                     ///
+         * //s                                     ///
+         * //s                                     ///
+         * //s                         xxxxxxxxxx  ///
+         * //s                         x        x  ///
+         * //s                         x        x  ///
+         * //s                         xxxxxxxxxx  ///
+         * //s                                     ///
+         * //s////////////////////////////////////////
          *
          * give a number of rects to it, then it will render each one somewhere
          * give colour by id or something
@@ -214,8 +214,11 @@ impl<'a> Game<'a> {
                 Rect::new(x, y, w, h)
             }};
         }
-
-        canvas.draw_rect(get_draw_rect!(self.camera)).unwrap();
+        let cam = get_draw_rect!(self.camera);
+        canvas.set_draw_color(Color::RGBA(0, 255, 0, 44));
+        canvas.fill_rect(cam).unwrap();
+        canvas.set_draw_color(Color::RGB(255, 255, 255));
+        canvas.draw_rect(cam).unwrap();
 
         for rect in rects {
             canvas.draw_rect(get_draw_rect!(rect)).unwrap();
@@ -240,7 +243,7 @@ impl<'a> Game<'a> {
 
         for index in self.rooms.rooms.iter().map(|thing| thing.0.clone()).collect::<Vec<_>>() {
             for wall in self.rooms.get_room_rects_offset(index.clone()) {
-                canvas.draw_rect(get_draw_rect!(wall)).unwrap();
+                canvas.fill_rect(get_draw_rect!(wall)).unwrap();
             }
         }
         // for collider in self.colliders.iter() {

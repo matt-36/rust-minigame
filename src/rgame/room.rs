@@ -152,7 +152,7 @@ impl Render for Room {
             RenderType::Canvas { .. } => {
                 canvas.set_draw_color(Color::RGB(127, 127, 127));
                 canvas
-                    .draw_rects(&self.get_rects((false, false, false, false)))
+                    .fill_rects(&self.get_rects((false, false, false, false)))
                     .unwrap();
             }
             RenderType::Minimap { options } => {}
