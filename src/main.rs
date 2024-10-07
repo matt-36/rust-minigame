@@ -89,11 +89,13 @@ fn main() -> Result<(), String> {
 
     // let wall_tex = texture_creator.load_texture("assets/yellow.png")?;
     let wall = collision::Collider::new(
-        Rect::new(0, 0, 1200, 1200),
-        Rect::new(200, 50, 120 * 4, 120 * 4),
+        Rect::new(200, 50, 120, 120),
+        Rect::new(200, 50, 120 , 120 ),
         3,
         &obama,
     );
+
+    game.add_collider(wall);
     /*
      *
      * ye look at aabb i reduced the thing cos the hitboxes wouldnt rescale

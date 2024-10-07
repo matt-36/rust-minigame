@@ -11,6 +11,6 @@ impl Menu {
         }
     }
     pub fn render(&self, canvas: &mut WindowCanvas) {
-
+        // TODO design a menu
     }
 }
