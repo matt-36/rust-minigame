@@ -64,9 +64,9 @@ impl<'a> Game<'a> {
                 };
             }
 
-            player.dest.x += speed.0 * 2;
+            player.dest.x += speed.0;
             collision_loop!(x, 'x_collision);
-            player.dest.y += speed.1 * 2;
+            player.dest.y += speed.1;
             collision_loop!(y, 'y_collision);
 
             if player.movement.should_play_animation()
