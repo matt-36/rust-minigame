@@ -146,7 +146,7 @@ impl Render for Room {
     fn render<T: sdl2::render::RenderTarget>(
         &self,
         canvas: &mut Canvas<T>,
-        r#type: RenderType,
+        r#type: RenderType<'_>,
     ) -> Option<()> {
         match r#type {
             RenderType::Canvas { .. } => {

@@ -12,11 +12,23 @@ pub struct Collider<'a> {
     pub dest: Rect,
     pub id: i32,
     phantom: PhantomData<&'a i32>,
+    #[cfg(not(feature = "unsafe_textures"))]
     pub texture: &'a Texture<'a>,
+    #[cfg(feature = "unsafe_textures")]
+    pub texture: Texture,
+
 }
 
 impl<'a> Collider<'a> {
-    pub fn new(sprite: Rect, dest: Rect, id: i32, texture: &'a Texture) -> Self {
+    pub fn new(
+        sprite: Rect, 
+        dest: Rect, 
+        id: i32, 
+        #[cfg(not(feature = "unsafe_textures"))]
+        texture: &'a Texture<'_>,
+        #[cfg(feature = "unsafe_textures")]
+        texture: Texture
+    ) -> Self {
         Self {
             sprite,
             dest,
@@ -39,7 +51,7 @@ impl Render for Collider<'_> {
     fn render<T: sdl2::render::RenderTarget>(
         &self,
         canvas: &mut sdl2::render::Canvas<T>,
-        r#type: crate::traits::render::RenderType,
+        r#type: crate::traits::render::RenderType<'_>,
     ) -> Option<()> {
         match r#type {
             RenderType::Canvas { camera } => {

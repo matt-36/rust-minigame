@@ -19,5 +19,5 @@ pub enum RenderType<'a> {
 }
 
 pub trait Render {
-    fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>, r#type: RenderType) -> Option<()>;
+    fn render<T: RenderTarget>(&self, canvas: &mut Canvas<T>, r#type: RenderType<'_>) -> Option<()>;
 }

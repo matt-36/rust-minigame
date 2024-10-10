@@ -55,12 +55,22 @@ pub struct Player<'a> {
     pub showhitbox: bool,
     phantom: PhantomData<&'a i32>,
     pub health: u32,
+    #[cfg(not(feature = "unsafe_textures"))]
     pub texture: &'a Texture<'a>,
+    #[cfg(feature = "unsafe_textures")]
+    pub texture: Texture,
 }
 
 impl<'a> Player<'a> {
     /// initialize a player
-    pub fn new(sprite: Rect, id: i32, texture: &'a Texture) -> Self {
+    pub fn new(
+        sprite: Rect, 
+        id: i32, 
+        #[cfg(not(feature = "unsafe_textures"))]
+        texture: &'a Texture<'_>,
+        #[cfg(feature = "unsafe_textures")]
+        texture: Texture
+    ) -> Self {
         let mut dest = Rect::new(0, 0, sprite.width() * 2, sprite.height() * 2);
         dest.center_on(Point::new(60 as i32 / 2, 60 as i32 / 2));
         Self {
@@ -177,7 +187,7 @@ impl Render for Player<'_> {
     fn render<T: sdl2::render::RenderTarget>(
         &self,
         canvas: &mut sdl2::render::Canvas<T>,
-        r#type: RenderType,
+        r#type: RenderType<'_>,
     ) -> Option<()> {
         match r#type {
             RenderType::Canvas { camera } => {
